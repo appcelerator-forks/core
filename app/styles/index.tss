@@ -1,0 +1,21 @@
+"#globalWindow": {
+	width: "100%",
+	height: Ti.UI.FILL
+},
+"#globalWindow[platform=ios]": {
+	statusBarStyle: Ti.UI.iPhone.StatusBar.LIGHT_CONTENT
+},
+"#globalWindow[platform=android]": {
+	exitOnClose: true,
+	fullscreen: false
+},
+"#globalWindow[platform=android formFactor=tablet]": {
+	orientationModes: [
+		Ti.UI.LANDSCAPE_LEFT
+	]
+},
+"#globalWindow[formFactor=handheld]": {
+	orientationModes: [
+		Ti.UI.PORTRAIT
+	]
+}

@@ -1,0 +1,11 @@
+<Alloy>
+	<View id="wrapper" controller="sub">
+		<View id="content">
+			<ImageView id="logo" />
+			
+			<Label id="about">
+				Sub Screen
+			</Label>
+		</View>
+	</View>
+</Alloy>

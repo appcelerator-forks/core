@@ -14,6 +14,16 @@ var Alloy = require("alloy");
 
 var App = {
 	/**
+	 * The Global Window for the app
+	 * @type {Object}
+	 */
+	globalWindow: {},
+	/**
+	 * The navigation module
+	 * @type {Navigation}
+	 */
+	Navigation: {},
+	/**
 	 * Device information, some come from the Ti API calls and can be referenced
 	 * from here so multiple bridge calls aren't necessary, others generated here
 	 * for ease of calculations and such.
@@ -55,6 +65,14 @@ var App = {
 		
 		// Get device dimensions
 		App.getDeviceDimensions();
+
+		// Init the Navigation module
+		App.Navigation = require("navigation")({
+			parent: App.globalWindow
+		});
+		
+		// Open the global window
+		App.globalWindow.open();
 	},
 	/**
 	 * Handle cross platform way of opening a main screen.
@@ -68,45 +86,18 @@ var App = {
 	 *
 	 * 		App.openScreen("login");
 	 *
-	 * This is a simplified, app-wide navigation
-	 * example which auto-adds a window to the controller.
-	 * More could be added here depending on the navigation requirements.
-	 * For instance, if you have a navgroup for handheld, you could open it in that
-	 * for iOS and differently in Android, etc.  The point is, managing your
-	 * app navigation flow in one spot is a good idea.
-	 *
 	 * @param {Controllers/String} _controller
 	 * @param {Object} _controllerArguments The arguments for the controller (optional)
 	 * @return {Controllers} Returns the new controller
 	 */
 	openScreen: function(_controller, _controllerArguments) {
-		var controller = null;
-		
-		if(typeof _controller === "string") {
-			controller = Alloy.createController(_controller, _controllerArguments);
-		} else {
-			controller = _controller;
-		}
-
-		// In this example we add a window to a controller
-		// opened via `openScreen`. Keeping windows out of the
-		// UI architecture keep the Views flexible.
-		controller.window = Ti.UI.createWindow({
-			backgroundColor: Alloy.CFG.windowBackgroundColor,
-			statusBarStyle: OS_IOS ? Ti.UI.iPhone.StatusBar.LIGHT_CONTENT : null
-		});
-		
-		controller.window.add(controller.wrapper);
-
-		// Set views for current orientation
-		App.setViewsForOrientation(controller);
-
-		// Bind orientation events for this controller instance
-		App.bindOrientationEvents(controller);
-
-		controller.window.open();
-
-		return controller;
+		return App.Navigation.open(_controller, _controllerArguments);
+	},
+	/**
+	 * Closes a screen controller (currently pops out the top one in the stack)
+	 */
+	closeScreen: function() {
+		App.Navigation.close();
 	},
 	/**
 	 * Helper to bind the orientation events to a controller. These get added automatically
@@ -123,21 +114,23 @@ var App = {
 	 * @param {Controllers} _controller The controller to bind the orientation events
 	 */
 	bindOrientationEvents: function(_controller) {
-		_controller.window.addEventListener("close", function() {
-			if(_controller.handleOrientation) {
-				Ti.App.removeEventListener("orientationChange", _controller.handleOrientation);
-			}
-		});
-		
-		_controller.window.addEventListener("open", function() {
-			Ti.App.addEventListener("orientationChange", function(_event) {
+		if(_controller.window) {
+			_controller.window.addEventListener("close", function() {
 				if(_controller.handleOrientation) {
-					_controller.handleOrientation(_event);
+					Ti.App.removeEventListener("orientationChange", _controller.handleOrientation);
 				}
-				
-				App.setViewsForOrientation(_controller);
 			});
-		});
+			
+			_controller.window.addEventListener("open", function() {
+				Ti.App.addEventListener("orientationChange", function(_event) {
+					if(_controller.handleOrientation) {
+						_controller.handleOrientation(_event);
+					}
+					
+					App.setViewsForOrientation(_controller);
+				});
+			});
+		}
 	},
 	/**
 	 * Update views for current orientation helper
@@ -172,6 +165,34 @@ var App = {
 				}
 			}
 		}
+	},
+	/**
+	 * Determines the device dimensions
+	 * @return {Object} Returns the new values of the new {@link core.Device.width} & {@link core.Device.height} settings
+	 */
+	getDeviceDimensions: function() {
+		// Set device height and width based on orientation
+		switch(App.Device.orientation) {
+			case "portrait":
+				App.Device.width = Ti.Platform.displayCaps.platformWidth > Ti.Platform.displayCaps.platformHeight ? Ti.Platform.displayCaps.platformHeight : Ti.Platform.displayCaps.platformWidth;
+				App.Device.height = Ti.Platform.displayCaps.platformWidth > Ti.Platform.displayCaps.platformHeight ? Ti.Platform.displayCaps.platformWidth : Ti.Platform.displayCaps.platformHeight;
+				break;
+			case "landscape":
+				App.Device.width = Ti.Platform.displayCaps.platformWidth > Ti.Platform.displayCaps.platformHeight ? Ti.Platform.displayCaps.platformWidth : Ti.Platform.displayCaps.platformHeight;
+				App.Device.height = Ti.Platform.displayCaps.platformWidth > Ti.Platform.displayCaps.platformHeight ? Ti.Platform.displayCaps.platformHeight : Ti.Platform.displayCaps.platformWidth;
+				break;
+		}
+		
+		// Convert dimensions from DP to PX for Android
+		if(OS_ANDROID) {
+			App.Device.width = (App.Device.width / (App.Device.dpi / 160));
+			App.Device.height = (App.Device.height / (App.Device.dpi / 160));
+		}
+
+		return {
+			width: App.Device.width,
+			height: App.Device.height
+		};
 	},
 	/**
 	 * Global network event handler
@@ -213,34 +234,6 @@ var App = {
 		Ti.App.fireEvent("orientationChange", {
 			orientation: App.Device.orientation
 		});
-	},
-	/**
-	 * Determines the device dimensions
-	 * @return {Object} Returns the new values of the new {@link core.Device.width} & {@link core.Device.height} settings
-	 */
-	getDeviceDimensions: function() {
-		// Set device height and width based on orientation
-		switch(App.Device.orientation) {
-			case "portrait":
-				App.Device.width = Ti.Platform.displayCaps.platformWidth > Ti.Platform.displayCaps.platformHeight ? Ti.Platform.displayCaps.platformHeight : Ti.Platform.displayCaps.platformWidth;
-				App.Device.height = Ti.Platform.displayCaps.platformWidth > Ti.Platform.displayCaps.platformHeight ? Ti.Platform.displayCaps.platformWidth : Ti.Platform.displayCaps.platformHeight;
-				break;
-			case "landscape":
-				App.Device.width = Ti.Platform.displayCaps.platformWidth > Ti.Platform.displayCaps.platformHeight ? Ti.Platform.displayCaps.platformWidth : Ti.Platform.displayCaps.platformHeight;
-				App.Device.height = Ti.Platform.displayCaps.platformWidth > Ti.Platform.displayCaps.platformHeight ? Ti.Platform.displayCaps.platformHeight : Ti.Platform.displayCaps.platformWidth;
-				break;
-		}
-		
-		// Convert dimensions from DP to PX for Android
-		if(OS_ANDROID) {
-			App.Device.width = (App.Device.width / (App.Device.dpi / 160));
-			App.Device.height = (App.Device.height / (App.Device.dpi / 160));
-		}
-
-		return {
-			width: App.Device.width,
-			height: App.Device.height
-		};
 	}
 };
 

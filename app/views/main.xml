@@ -1,5 +1,5 @@
 <Alloy>
-	<View id="wrapper">
+	<View id="wrapper" controller="main">
 		<View id="content">
 			<ImageView id="logo" />
 			
